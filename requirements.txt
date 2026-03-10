@@ -1,0 +1,33 @@
+# ==========================================
+# GCP Core: Almacenamiento y Data Warehouse
+# ==========================================
+google-cloud-storage==2.14.0
+google-cloud-bigquery==3.17.0
+db-dtypes==1.2.0  # Crucial para que pandas y BigQuery se comuniquen sin errores
+
+# ==========================================
+# Extracción de Datos en la Nube (OCR Avanzado)
+# ==========================================
+google-cloud-documentai==2.20.1
+
+# ==========================================
+# Extracción Local y Pre-procesamiento de Imágenes
+# ==========================================
+pdfplumber==0.10.3
+pytesseract==0.3.10
+Pillow==10.2.0
+# Usamos la versión 'headless' de OpenCV para evitar pedir dependencias de interfaz gráfica en servidores
+opencv-python-headless==4.9.0.80 
+
+# ==========================================
+# Transformación y Limpieza de Datos (ETL)
+# ==========================================
+pandas==2.2.0
+numpy==1.26.4
+
+# ==========================================
+# Orquestación a Escala (Dataflow)
+# ==========================================
+# Nota: Beam es pesado. Mantenlo comentado hasta que tu script local 
+# funcione perfecto y estés listo para llevarlo a producción en Dataflow.
+# apache-beam[gcp]==2.53.0
