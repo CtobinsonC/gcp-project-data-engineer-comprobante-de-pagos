@@ -212,75 +212,154 @@ def _extraer_grupo(patron: str, texto: str, flags: int = 0) -> Optional[str]:
 
 def parsear_comprobante(texto: str, nombre_archivo: str) -> dict:
     """
-    Extrae los 5 campos estructurados del texto crudo del comprobante
-    usando expresiones regulares robustas.
-
-    Campos extraídos:
-        - banco_destino     (str)
-        - monto_transferido (float | None)
-        - fecha             (str)
-        - numero_referencia (str)
-        - enviado_por       (str)
-        - archivo_origen    (str) ← trazabilidad
-
-    Args:
-        texto:          Texto retornado por Document AI OCR.
-        nombre_archivo: Nombre del blob procesado.
-
-    Returns:
-        Diccionario con los campos extraídos.
+    Extrae campos de un comprobante de pago de cualquier banco colombiano.
+    Estrategia: múltiples patrones por campo + fallbacks por palabras clave.
+    Loggea el texto crudo para facilitar debug cuando los campos quedan null.
     """
+    # ── Debug: mostrar texto crudo extraído por Document AI ───────────────
+    logger.debug(f"\n{'='*50}\nTexto OCR de '{nombre_archivo}':\n{texto}\n{'='*50}")
+    # Si todos los campos quedan null, este log ayuda a ver qué llegó
+    texto_preview = texto[:300].replace("\n", " | ") if texto else "(vacío)"
+    logger.info(f"    OCR preview: {texto_preview}")
+
     # ── Banco Destino ──────────────────────────────────────────────────────
-    banco_raw = _extraer_grupo(
-        r"Banco\s+Destino\s*[:\-]?\s*\n?\s*(.+)",
-        texto,
-        re.IGNORECASE,
-    )
-    banco = banco_raw.split("\n")[0].strip() if banco_raw else None
+    banco = None
+    patrones_banco = [
+        # Nequi App: "Producto destino\nNequi"
+        r"Producto\s+destino[\s\S]{0,30}?\n\s*([^\n\d\*]{3,40}?)(?:\n|$)",
+        # Davivienda: "Cuenta destino\nNOMBRE EMPRESA"
+        r"Cuenta\s+destino\s*\n\s*([^\n\d\*]{3,60})",
+        # Nequi Recibo: "Número Nequi" → banco es Nequi
+        r"(N[uú]mero\s+Nequi)",
+        # Davivienda header
+        r"(DAVIVIENDA)",
+        # Sintético: "Banco Destino: Bancolombia"
+        r"Banco\s+Destino\s*[:\-]?\s*\n?\s*([^\n]+)",
+        # Fallback: nombre de banco conocido en el texto
+        r"\b(Nequi|Bancolombia|Davivienda|Daviplata|BBVA|Scotiabank|"
+        r"Banco\s+de\s+Bogot[aá]|Banco\s+Popular|Colpatria|Itaú)\b",
+    ]
+    for patron in patrones_banco:
+        match = re.search(patron, texto, re.IGNORECASE | re.MULTILINE)
+        if match:
+            candidato = match.group(1).strip()
+            # "Número Nequi" → banco es Nequi
+            if re.search(r"n[uú]mero\s+nequi", candidato, re.IGNORECASE):
+                candidato = "Nequi"
+            if not re.match(r'^[\d\*\s]+$', candidato) and len(candidato) >= 3:
+                banco = candidato
+                break
 
     # ── Monto Transferido ──────────────────────────────────────────────────
-    monto_raw = _extraer_grupo(
-        r"Monto\s+Transferido\s*[:\-]?\s*\n?\s*\$?([\d,\.]+)",
-        texto,
-        re.IGNORECASE,
-    )
     monto: Optional[float] = None
-    if monto_raw:
-        try:
-            monto = float(monto_raw.replace("$", "").replace(",", ""))
-        except ValueError:
-            monto = None
+    patrones_monto = [
+        # Nequi App: "Valor de la transferencia\n$ 200.000"
+        r"[Vv]alor\s+de\s+la\s+transferencia[\s\S]{0,30}?\$\s*([\d\.,]+)",
+        # Nequi Recibo: "¿Cuánto?\n$ 500,000"
+        r"¿Cu[aá]nto\?\s*\n?\s*\$\s*([\d\.,]+)",
+        # Davivienda: "Monto\n$5,000,000" (alineado a la derecha)
+        r"^Monto\s*\n\s*\$\s*([\d\.,]+)",
+        # Davivienda fallback: "$5,000,000" genérico
+        r"\$\s*([\d\.,]{4,})",
+        # Sintético
+        r"Monto\s+[Tt]ransferido\s*[:\-]?\s*\n?\s*\$?\s*([\d\.,]+)",
+    ]
+    for patron in patrones_monto:
+        monto_raw = _extraer_grupo(patron, texto, re.IGNORECASE | re.DOTALL | re.MULTILINE)
+        if monto_raw:
+            try:
+                limpio = monto_raw.strip().replace(" ", "").replace("$", "")
+                if "." in limpio and "," not in limpio:
+                    partes = limpio.split(".")
+                    if all(len(p) == 3 for p in partes[1:]):
+                        limpio = limpio.replace(".", "")   # miles colombiano
+                elif "," in limpio:
+                    limpio = limpio.replace(",", "")       # miles anglosajón
+                monto = float(limpio)
+                break
+            except ValueError:
+                continue
 
     # ── Fecha ──────────────────────────────────────────────────────────────
-    fecha = _extraer_grupo(
-        r"Fecha\s*[:\-]?\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})",
-        texto,
-        re.IGNORECASE,
-    )
+    fecha = None
+    patrones_fecha = [
+        # "13 Feb 2026 - 09:37 p. m." (Nequi App con guion)
+        r"(\d{1,2}\s+\w+\.?\s+\d{4}\s*[-–]\s*\d{1,2}:\d{2}\s*[aApP]\.?\s*[mM]\.?)",
+        # "15 de noviembre de 2025 a las 07:48 a. m." (Nequi Recibo)
+        r"(\d{1,2}\s+de\s+\w+\s+de\s+\d{4}\s+a\s+las\s+\d{1,2}:\d{2}\s*[aApP]\.?\s*[mM]\.?)",
+        # "24/09/2025, 3:45 p.m." (Davivienda)
+        r"(\d{1,2}\/\d{1,2}\/\d{4},?\s+\d{1,2}:\d{2}\s*[aApP]\.?\s*[mM]\.?)",
+        # "13 Feb 2026 05:20 p.m." sin guion
+        r"(\d{1,2}\s+\w+\.?\s+\d{4}\s+\d{1,2}:\d{2}\s*[aApP]\.?\s*[mM]\.?)",
+        # "2026-02-13 05:20:00" ISO (sintético)
+        r"(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(?::\d{2})?)",
+        # Solo fecha numérica: "24/09/2025"
+        r"(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})",
+    ]
+    for patron in patrones_fecha:
+        fecha = _extraer_grupo(patron, texto, re.IGNORECASE)
+        if fecha:
+            fecha = fecha.strip()
+            break
 
     # ── Número de Referencia ───────────────────────────────────────────────
-    referencia = _extraer_grupo(
-        r"No\.\s*Referencia\s*[:\-]?\s*(\d{8})",
-        texto,
-        re.IGNORECASE,
-    )
+    referencia = None
+    patrones_ref = [
+        # Nequi App: "Comprobante No. 6U9SS4XLAN"
+        r"Comprobante\s+No\.?\s*([A-Z0-9]{5,20})",
+        # Nequi Recibo: "Referencia\nM01792856"
+        r"^Referencia\s*\n\s*([A-Z0-9]{5,20})",
+        # Davivienda: "Número de aprobación\n430094"
+        r"N[uú]mero\s+de\s+aprobaci[oó]n\s*\n?\s*([A-Z0-9]{4,20})",
+        # Genérico
+        r"(?:No\.?\s*)?Referencia\s*[:\-]?\s*([A-Z0-9]{5,20})",
+        r"#\s*([A-Z0-9]{5,20})",
+    ]
+    for patron in patrones_ref:
+        referencia = _extraer_grupo(patron, texto, re.IGNORECASE | re.MULTILINE)
+        if referencia:
+            break
 
-    # ── Enviado Por ────────────────────────────────────────────────────────
-    enviado_raw = _extraer_grupo(
-        r"Enviado\s+por\s*[:\-]?\s*(.+)",
-        texto,
-        re.IGNORECASE,
-    )
-    enviado = enviado_raw.split("\n")[0].strip() if enviado_raw else None
+    # ── Enviado Por / Cuenta Origen ────────────────────────────────────────
+    enviado = None
+    patrones_enviado = [
+        # Nequi App: "Producto origen\nCuenta de Ahorros"
+        r"Producto\s+origen\s*\n+\s*([^\n\d\*]{3,60})",
+        # Davivienda: "Cuenta origen\nCta. Ahorros"
+        r"Cuenta\s+origen\s*\n\s*([^\n\d\*]{3,60})",
+        # Nequi Recibo: "Para\nNombre persona"
+        r"^Para\s*\n\s*([^\n\d\$]{3,60})",
+        # Sintético
+        r"Enviado\s+por\s*[:\-]?\s*([^\n]+)",
+    ]
+    for patron in patrones_enviado:
+        enviado_raw = _extraer_grupo(patron, texto, re.IGNORECASE | re.MULTILINE)
+        if enviado_raw:
+            candidato = enviado_raw.split("\n")[0].strip()
+            if len(candidato) >= 3:
+                enviado = candidato
+                break
 
+
+    # ── Log de campos null ─────────────────────────────────────────────────
+    nulos = [k for k, v in [
+        ("banco", banco), ("monto", monto), ("fecha", fecha),
+        ("referencia", referencia), ("enviado", enviado)
+    ] if v is None]
+    if nulos:
+        logger.warning(f"    Campos null en '{nombre_archivo}': {nulos}")
+        logger.warning(f"    Texto completo OCR:\n{texto}")
+
+    # ── Valores por defecto — los datos deben llegar LIMPIOS a BigQuery ────
     return {
         "archivo_origen":    nombre_archivo,
-        "banco_destino":     banco,
-        "monto_transferido": monto,
-        "fecha":             fecha,
-        "numero_referencia": referencia,
-        "enviado_por":       enviado,
+        "banco_destino":     banco       or "No identificado",
+        "monto_transferido": monto,          # float: se deja None si no se encuentra
+        "fecha":             fecha       or "No disponible",
+        "numero_referencia": referencia  or "No disponible",
+        "enviado_por":       enviado     or "No especificado",
     }
+
 
 
 # ─────────────────────────────────────────────

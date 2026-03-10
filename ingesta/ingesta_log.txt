@@ -213,3 +213,35 @@
 2026-03-09 22:48:21,635 [INFO]   ⏱️  Duración total       : 95.09 segundos
 2026-03-09 22:48:21,635 [INFO] ============================================================
 2026-03-09 22:48:21,635 [INFO] 🎉 Ingesta completada con éxito.
+2026-03-10 10:35:52,056 [INFO] ============================================================
+2026-03-10 10:35:52,057 [INFO]   INICIANDO PROCESO DE INGESTA A GCS
+2026-03-10 10:35:52,057 [INFO]   Fecha/Hora    : 2026-03-10 10:35:52
+2026-03-10 10:35:52,057 [INFO]   Bucket Destino: gs://gcs-project-comprobante/raw_receipts/
+2026-03-10 10:35:52,058 [INFO] ============================================================
+2026-03-10 10:35:52,247 [INFO] ✅ Autenticación exitosa. Proyecto: gcp-project-comprobante
+2026-03-10 10:35:52,253 [INFO] 📂 Archivos encontrados para ingesta: 1
+2026-03-10 10:35:54,379 [INFO]   ⬆️  Subido: comrpobante_real.jpg → gs://gcs-project-comprobante/raw_receipts/comrpobante_real.jpg
+2026-03-10 10:35:54,379 [INFO] ============================================================
+2026-03-10 10:35:54,379 [INFO]   RESUMEN DE INGESTA
+2026-03-10 10:35:54,381 [INFO]   ✅ Subidos exitosamente : 1
+2026-03-10 10:35:54,381 [INFO]   ⏭️  Omitidos (duplicados): 0
+2026-03-10 10:35:54,381 [INFO]   ❌ Fallidos             : 0
+2026-03-10 10:35:54,381 [INFO]   ⏱️  Duración total       : 2.32 segundos
+2026-03-10 10:35:54,382 [INFO] ============================================================
+2026-03-10 10:35:54,382 [INFO] 🎉 Ingesta completada con éxito.
+2026-03-10 10:53:19,825 [INFO] ============================================================
+2026-03-10 10:53:19,827 [INFO]   INICIANDO PROCESO DE INGESTA A GCS
+2026-03-10 10:53:19,828 [INFO]   Fecha/Hora    : 2026-03-10 10:53:19
+2026-03-10 10:53:19,828 [INFO]   Bucket Destino: gs://gcs-project-comprobante/raw_receipts/
+2026-03-10 10:53:19,828 [INFO] ============================================================
+2026-03-10 10:53:19,888 [INFO] ✅ Autenticación exitosa. Proyecto: gcp-project-comprobante
+2026-03-10 10:53:19,889 [INFO] 📂 Archivos encontrados para ingesta: 1
+2026-03-10 10:53:21,905 [INFO]   ⬆️  Subido: comrpobante_real.jpg → gs://gcs-project-comprobante/raw_receipts/comrpobante_real.jpg
+2026-03-10 10:53:21,906 [INFO] ============================================================
+2026-03-10 10:53:21,906 [INFO]   RESUMEN DE INGESTA
+2026-03-10 10:53:21,907 [INFO]   ✅ Subidos exitosamente : 1
+2026-03-10 10:53:21,908 [INFO]   ⏭️  Omitidos (duplicados): 0
+2026-03-10 10:53:21,908 [INFO]   ❌ Fallidos             : 0
+2026-03-10 10:53:21,908 [INFO]   ⏱️  Duración total       : 2.08 segundos
+2026-03-10 10:53:21,909 [INFO] ============================================================
+2026-03-10 10:53:21,909 [INFO] 🎉 Ingesta completada con éxito.

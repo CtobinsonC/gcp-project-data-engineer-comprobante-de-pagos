@@ -1,3 +1,49 @@
-.venv
+# ─── Credenciales y secretos ───────────────────────────────
 json_key.json
-raw_receipts
+*.json.key
+credentials/
+secrets/
+.env
+
+# ─── Entorno virtual Python ────────────────────────────────
+.venv/
+venv/
+env/
+
+# ─── Imágenes de comprobantes (generadas / subidas a GCS) ──
+generador_de_comprobantes/raw_receipts/
+raw_receipts/
+
+# ─── Logs del orquestador ──────────────────────────────────
+orquestador/logs/
+orquestador/pipeline_log.txt
+*.log
+
+# ─── Caché de Python ───────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# ─── Airflow (generado en runtime) ─────────────────────────
+orquestador/plugins/
+airflow.db
+airflow.cfg
+webserver_config.py
+
+# ─── IDEs y editores ───────────────────────────────────────
+.vscode/
+.idea/
+*.code-workspace
+
+# ─── Sistema operativo ─────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Archivos temporales y builds ──────────────────────────
+*.tmp
+*.bak
+dist/
+build/
+*.egg-info/
